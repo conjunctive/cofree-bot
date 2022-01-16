@@ -184,6 +184,7 @@ runMatrixBot session cache bot s = do
     let txnIds = (TxnID . T.pack . show <$> randoms @Int gen)
     liftIO $ sequence_ $ zipWith (runMatrixAction session) txnIds responses 
 
+-- | This function throws away all awareness of rooms.
 simplifyMatrixBot :: Monad m => MatrixBot m s -> TextBot m s
 simplifyMatrixBot (Bot bot) = Bot $ \i s -> do
   BotAction {..} <- bot (RoomID mempty, mkRoomEvent i) s
@@ -191,7 +192,7 @@ simplifyMatrixBot (Bot bot) = Bot $ \i s -> do
   where
     mkRoomEvent :: T.Text -> RoomEvent
     mkRoomEvent msg =
-      RoomEvent (EventRoomMessage $ mkMsg msg) mempty (EventID mempty) (Author mempty)
+      RoomEvent (EventRoomMessage $ mkRoomMessage msg) mempty (EventID mempty) (Author mempty)
 
     mkEvent :: MatrixAction -> Event
     mkEvent = \case
@@ -201,20 +202,17 @@ simplifyMatrixBot (Bot bot) = Bot $ \i s -> do
 
 liftSimpleBot :: Functor m => TextBot m s -> MatrixBot m s
 liftSimpleBot (Bot bot) = Bot
-  $ \(rid, i) s -> fmap (fmap  (fmap (SendMessage . mkMsg rid))) $ bot (viewBody i) s
+  $ \(rid, i) s -> fmap (fmap (fmap (mkMatrixAction rid))) $ bot (viewBody $ reContent i) s
  where
-  viewBody :: RoomEvent -> T.Text
-  viewBody = (view (_reContent . _EventRoomMessage . _RoomMessageText . _mtBody))
-
-  mkMsg :: RoomID -> T.Text -> MatrixMessage
-  mkMsg rid' msg =
-    MatrixMessage rid' $ EventRoomMessage $ RoomMessageText $ MessageText msg TextType Nothing Nothing
+  mkMatrixAction :: RoomID -> T.Text -> MatrixAction
+  mkMatrixAction rid' msg =
+    SendMessage $ MatrixMessage rid' $ EventRoomMessage $ mkRoomMessage msg
 
 viewBody :: Event -> T.Text
 viewBody = (view (_EventRoomMessage . _RoomMessageText . _mtBody))
 
-mkMsg :: T.Text -> RoomMessage
-mkMsg msg = RoomMessageText $ MessageText msg TextType Nothing Nothing
+mkRoomMessage :: T.Text -> RoomMessage
+mkRoomMessage msg = RoomMessageText $ MessageText msg TextType Nothing Nothing
 
 --------------------------------------------------------------------------------
 -- Text Bot
