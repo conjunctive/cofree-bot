@@ -17,7 +17,7 @@ helloSimpleBot = pureStatelessBot $ \msg ->
         then pure $ "Are you talking to me, punk?"
         else mempty
 
-helloSimpleBot' :: (IsString (MessageContent api), MessagingAPI api, Applicative m) => Bot m s (Destination api, MessageReference api) [Action api]
+helloSimpleBot' :: (IsString (MessageContent api), MessagingAPI api, Applicative m) => Bot m s (Channel api, MessageReference api) [Action api]
 helloSimpleBot' = pureStatelessBot $ \(rid, re) ->
   if messageIsMention re
     then [reply rid re "Are you talking to me, punk?"]

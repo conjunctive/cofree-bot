@@ -128,7 +128,6 @@ mapMaybeBot
 mapMaybeBot f (Bot bot) =
   Bot $ \i s -> maybe (pure (BotAction mempty s)) (flip bot s) $ f i
 
-
 roomMessageOfEvent :: Traversal' NMC.Event NMC.RoomMessage
 roomMessageOfEvent = _EventRoomMessage `adjoin` (_EventRoomReply . _2) `adjoin` (_EventRoomEdit . _2)
     
@@ -137,16 +136,18 @@ roomMessageOfEvent = _EventRoomMessage `adjoin` (_EventRoomReply . _2) `adjoin` 
 --------------------------------------------------------------------------------
 
 class MessagingAPI api where
-  type Destination api = (r :: Type) | r -> api
+  type Channel api = (r :: Type) | r -> api
+  -- ^ The destination channel for them message. Eg., RoomID on Matrix.
   type MessageReference api = (r :: Type) | r -> api
+  -- ^ The identifier for the incoming message.
   type MessageContent api :: Type
+  -- ^ The message content to be sent out.
   type Action api = (r :: Type) | r -> api
-  -- type UserId event :: Type
+  -- ^ The type of actions available on the api.
 
   messageIsMention :: MessageReference api -> Bool
-  sendMessage :: Destination api -> MessageContent api -> Action api
-  reply :: Destination api -> MessageReference api -> MessageContent api -> Action api
-  -- mention :: UserId event -> Markup event
+  sendMessage :: Channel api -> MessageContent api -> Action api
+  reply :: Channel api -> MessageReference api -> MessageContent api -> Action api
 
 --------------------------------------------------------------------------------
 -- Matrix Bot
@@ -161,8 +162,9 @@ data MatrixReply = MatrixReply { mrRid :: NMC.RoomID, mrOriginal :: NMC.RoomEven
 data MatrixAction = SendMessage MatrixMessage | SendReply MatrixReply
 
 instance MessagingAPI Matrix where
-  type Destination Matrix = NMC.RoomID
+  type Channel Matrix = NMC.RoomID
   type MessageReference Matrix = NMC.RoomEvent 
+  -- ^ NOTE: For Matrix, we must use the full RoomEvent as the Identifier
   type MessageContent Matrix = NMC.MessageText 
   type Action Matrix = MatrixAction
 
@@ -271,8 +273,9 @@ data TextAction
   | TAReply T.Text T.Text
 
 instance MessagingAPI Repl where
-  type Destination Repl = ()
+  type Channel Repl = ()
   type MessageReference Repl = Void 
+  -- ^ The Repl protocol does not support replies.
   type MessageContent Repl = T.Text
   type Action Repl = TextAction
 
